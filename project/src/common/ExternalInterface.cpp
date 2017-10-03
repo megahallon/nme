@@ -116,6 +116,12 @@ static int _id_bytesLoaded;
 static int _id_volume;
 static int _id_pan;
 
+static int _id_highlightColor;
+static int _id_highlightAlpha;
+static int _id_shadowColor;
+static int _id_shadowAlpha;
+static int _id_bevelType;
+
 static int _id_alphaMultiplier;
 static int _id_redMultiplier;
 static int _id_greenMultiplier;
@@ -226,6 +232,12 @@ extern "C" void InitIDs()
    _id_bytesLoaded = val_id("bytesLoaded");
    _id_volume = val_id("volume");
    _id_pan = val_id("pan");
+
+   _id_highlightAlpha = val_id("highlightAlpha");
+   _id_highlightColor = val_id("highlightColor");
+   _id_shadowAlpha = val_id("shadowAlpha");
+   _id_shadowColor = val_id("shadowColor");
+   _id_bevelType = val_id("bevelType");
 
    _id_alphaMultiplier = val_id("alphaMultiplier");
    _id_redMultiplier = val_id("redMultiplier");
@@ -537,6 +549,26 @@ Filter *FilterFromValue(value filter)
           (bool)val_field_numeric(filter,_id_hideObject),
           (bool)val_field_numeric(filter,_id_knockout),
           (bool)val_field_numeric(filter,_id_inner)
+          ) );
+   }
+   else if (type==L"BevelFilter")
+   {
+      int quality = val_int(val_field(filter,_id_quality));
+      if (quality<1) return 0;
+      int bevelType = 1; // _id_bevelType
+      return( new BevelFilter(
+          val_field_numeric(filter,_id_distance),
+          val_field_numeric(filter,_id_angle),
+          val_int( val_field(filter,_id_highlightColor) ),
+          val_field_numeric(filter,_id_highlightAlpha),
+          val_int( val_field(filter,_id_shadowColor) ),
+          val_field_numeric(filter,_id_shadowAlpha),
+          (int)val_field_numeric(filter,_id_blurX),
+          (int)val_field_numeric(filter,_id_blurY),
+          val_field_numeric(filter,_id_strength),
+          quality,
+          bevelType,
+          (bool)val_field_numeric(filter,_id_knockout)
           ) );
    }
    return 0;

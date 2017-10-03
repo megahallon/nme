@@ -83,6 +83,30 @@ public:
    bool mInner;
 };
 
+class BevelFilter : public BlurFilter
+{
+public:
+   BevelFilter(double inDistance, double inAngle, int inHighlightColor, double inHighlightAlpha,
+      int inShadowColor, double inShadowAlpha, double inBlurX, double inBlurY, double inStrength,
+      int inQuality, int inType, bool inKnockout);
+
+   // We will do the blur-iterations ourselves.
+   int GetQuality() { return 1; }
+
+   void Apply(const Surface *inSrc,Surface *outDest,ImagePoint inSrc0, ImagePoint inDiff,int inPass) const;
+   virtual void ExpandVisibleFilterDomain(Rect &ioRect,int inPass) const;
+   void GetFilteredObjectRect(Rect &ioRect,int inPass) const;
+
+   int mDistance;
+   int mBevelType;
+   int mHighlightColor;
+   int mHighlightAlpha;
+   int mShadowColor;
+   int mShadowAlpha;
+   int mStrength; /* Fixed-8 */
+   bool mKnockout;
+};
+
 typedef QuickVec<Filter *> FilterList;
 
 

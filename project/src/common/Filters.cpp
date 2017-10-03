@@ -607,6 +607,75 @@ void DropShadowFilter::GetFilteredObjectRect(Rect &ioRect,int inPass) const
 }
 
 
+// --- BevelFilter -------------------------------------------------------------
+
+BevelFilter::BevelFilter(double inDistance, double inAngle, int inHighlightColor, double inHighlightAlpha,
+                         int inShadowColor, double inShadowAlpha, double inBlurX, double inBlurY, double inStrength,
+                         int inQuality, int inType, bool inKnockout)
+  : BlurFilter(inQuality, inBlurX, inBlurY),
+    mHighlightColor(inHighlightColor), mShadowColor(inShadowColor),
+    mKnockout(inKnockout), mBevelType(inType)
+{
+   double theta = inAngle * M_PI/180.0;
+   if (inDistance>255) inDistance = 255;
+   if (inDistance<0) inDistance = 0;
+   mDistance = inDistance;
+
+   mStrength = (int)(inStrength * 256);
+   if ((unsigned int)mStrength > 0x10000)
+      mStrength = 0x10000;
+
+   mHighlightAlpha = (int)(inHighlightAlpha * 255);
+   if ((unsigned int)mHighlightAlpha > 255) mHighlightAlpha = 255;
+
+   mShadowAlpha = (int)(inShadowAlpha * 255);
+   if ((unsigned int)mShadowAlpha > 255) mShadowAlpha = 255;
+}
+
+void BevelFilter::Apply(const Surface *inSrc, Surface *outDest, ImagePoint inSrc0, ImagePoint inDiff, int inPass) const
+{
+   AutoSurfaceRender render(outDest);
+   outDest->Zero();
+   const RenderTarget &target = render.Target();
+   Rect src(inSrc0.x, inSrc0.y, inSrc->Width(), inSrc->Height());
+   ImagePoint p(inSrc0);
+
+   p -= inDiff;
+
+   Rect r1(p.x, p.y, inSrc->Width(), mDistance);
+   Rect r2(p.x, p.y, mDistance, inSrc->Height());
+   Rect r3(p.x + inSrc->Width() - mDistance, p.y, mDistance, inSrc->Height());
+   Rect r4(p.x, p.y + inSrc->Height() - mDistance, inSrc->Width(), mDistance);
+
+   inSrc->BlitTo(target, src, -inDiff.x, -inDiff.y, bmCopy, 0, 0xffffff);
+
+   ShadowRect(target, r1, mHighlightColor | (mHighlightAlpha << 24), mStrength);
+   ShadowRect(target, r2, mHighlightColor | (mHighlightAlpha << 24), mStrength);
+   ShadowRect(target, r3, mShadowColor | (mShadowAlpha << 24), mStrength);
+   ShadowRect(target, r4, mShadowColor | (mShadowAlpha << 24), mStrength);
+}
+
+void BevelFilter::ExpandVisibleFilterDomain(Rect &ioRect,int inPass) const
+{
+   Rect orig = ioRect;
+
+   // Handle the quality ourselves, so iterate here.
+   // Work out blur component...
+   for(int q=0;q<mQuality;q++)
+      BlurFilter::ExpandVisibleFilterDomain(ioRect,q);
+}
+
+void BevelFilter::GetFilteredObjectRect(Rect &ioRect,int inPass) const
+{
+   Rect orig = ioRect;
+
+   // Handle the quality ourselves, so iterate here.
+   // Work out blur component...
+   for(int q=0;q<mQuality;q++)
+      BlurFilter::GetFilteredObjectRect(ioRect,q);
+}
+
+
 
 // --- FilterList --------------------------------------------------------------
 
