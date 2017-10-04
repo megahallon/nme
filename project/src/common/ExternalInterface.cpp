@@ -58,6 +58,7 @@ void InitCamera();
 int _id_id=0;
 
 static int _id_type;
+static int _id_filterType;
 static int _id_x;
 static int _id_y;
 static int _id_z;
@@ -174,6 +175,7 @@ extern "C" void InitIDs()
       return;
    sgIDsInit = true;
    _id_type = val_id("type");
+   _id_filterType = val_id("filterType");
    _id_x = val_id("x");
    _id_y = val_id("y");
    _id_z = val_id("z");
@@ -519,7 +521,7 @@ void FromValue(Rect &outRect, value inValue)
 
 Filter *FilterFromValue(value filter)
 {
-   WString type = valToStdWString( val_field(filter,_id_type) );
+   WString type = valToStdWString( val_field(filter,_id_filterType) );
    if (type==L"BlurFilter")
    {
       int q = val_int(val_field(filter,_id_quality));

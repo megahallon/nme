@@ -15,7 +15,7 @@ class BevelFilter extends BitmapFilter
    public var shadowAlpha:Float;
    public var shadowColor:Int;
    public var strength:Float;
-   public var bevelType:String;
+   public var type:String;
    public function new(in_distance:Float = 4.0, in_angle:Float = 45.0, in_highlightColor:Int = 0xffffff, in_highlightAlpha:Float = 1.0, in_shadowColor:Int = 0x000000, in_shadowAlpha:Float = 1.0, in_blurX:Float = 4.0, in_blurY:Float = 4.0, in_strength:Float = 1.0, in_quality:Int = 1, in_type:String = "inner", in_knockout:Bool = false)
    {
       super("BevelFilter");
@@ -30,13 +30,13 @@ class BevelFilter extends BitmapFilter
       blurY = in_blurY;
       strength = in_strength;
       quality = in_quality;
-      bevelType = in_type;
+      type = in_type;
       knockout = in_knockout;
    }
 
    override public function clone():BitmapFilter 
    {
-      return new BevelFilter(distance, angle, highlightColor, highlightAlpha, shadowColor, shadowAlpha, blurX, blurY, strength, quality, bevelType, knockout);
+      return new BevelFilter(distance, angle, highlightColor, highlightAlpha, shadowColor, shadowAlpha, blurX, blurY, strength, quality, type, knockout);
    }
 }
 

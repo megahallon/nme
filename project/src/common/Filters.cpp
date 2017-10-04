@@ -616,12 +616,15 @@ BevelFilter::BevelFilter(double inDistance, double inAngle, int inHighlightColor
     mHighlightColor(inHighlightColor), mShadowColor(inShadowColor),
     mKnockout(inKnockout), mBevelType(inType)
 {
-   double theta = inAngle * M_PI/180.0;
    if (inDistance>255) inDistance = 255;
    if (inDistance<0) inDistance = 0;
    mDistance = inDistance;
 
-   mStrength = (int)(inStrength * 256);
+   double theta = inAngle * M_PI/180.0;
+   mTX = (int)(cos(theta) * mDistance);
+   mTY = (int)(sin(theta) * mDistance);
+
+   mStrength = (int)(inStrength * 256 * 2);
    if ((unsigned int)mStrength > 0x10000)
       mStrength = 0x10000;
 
@@ -642,37 +645,116 @@ void BevelFilter::Apply(const Surface *inSrc, Surface *outDest, ImagePoint inSrc
 
    p -= inDiff;
 
-   Rect r1(p.x, p.y, inSrc->Width(), mDistance);
-   Rect r2(p.x, p.y, mDistance, inSrc->Height());
-   Rect r3(p.x + inSrc->Width() - mDistance, p.y, mDistance, inSrc->Height());
-   Rect r4(p.x, p.y + inSrc->Height() - mDistance, inSrc->Width(), mDistance);
+   Surface *highlight = new SimpleSurface(inSrc->Width(), inSrc->Height(), pfBGRA);
+   Surface *shadow = new SimpleSurface(inSrc->Width(), inSrc->Height(), pfBGRA);
 
-   inSrc->BlitTo(target, src, -inDiff.x, -inDiff.y, bmCopy, 0, 0xffffff);
+   AutoSurfaceRender renderHighlight(highlight);
+   const RenderTarget &targetHighlight = renderHighlight.Target();
+   AutoSurfaceRender renderShadow(shadow);
+   const RenderTarget &targetShadow = renderShadow.Target();
 
-   ShadowRect(target, r1, mHighlightColor | (mHighlightAlpha << 24), mStrength);
-   ShadowRect(target, r2, mHighlightColor | (mHighlightAlpha << 24), mStrength);
-   ShadowRect(target, r3, mShadowColor | (mShadowAlpha << 24), mStrength);
-   ShadowRect(target, r4, mShadowColor | (mShadowAlpha << 24), mStrength);
+   inSrc->BlitTo(targetHighlight, src, 0, 0, bmCopy, 0, 0);
+   inSrc->BlitTo(targetHighlight, src, mTX, mTY, bmErase, 0, 0);
+
+   inSrc->BlitTo(targetShadow, src, 0, 0, bmCopy, 0, 0);
+   inSrc->BlitTo(targetShadow, src, -mTX, -mTY, bmErase, 0, 0);
+
+   int colHighlight = mHighlightColor | (mHighlightAlpha << 24);
+   for (int y = 0; y < highlight->Height(); y++) {
+     ARGB *row = ((ARGB *)targetHighlight.Row(y));
+     for (int x = 0; x < highlight->Width(); x++) {
+       if (row[x].a != 0) {
+         row[x].ival = colHighlight;
+       }
+     }
+   }
+
+   ImagePoint highlightOffset(0, 0);
+   ImagePoint a_pos(inSrc0);
+   for (int q = 0; q < mQuality; q++) {
+     Rect src_rect(highlight->Width(), highlight->Height());
+     BlurFilter::GetFilteredObjectRect(src_rect, q);
+     Surface *blur = new SimpleSurface(src_rect.w, src_rect.h, pfBGRA);
+     blur->IncRef();
+     ImagePoint diff(src_rect.x, src_rect.y);
+
+     DoApply<ARGB>(highlight, blur, a_pos, diff, q);
+     a_pos = ImagePoint(0,0);
+     highlight->DecRef();
+     highlight = blur;
+     highlightOffset += diff;
+   }
+
+   ApplyStrength(highlight, mStrength);
+
+   int colShadow = mShadowColor | (mShadowAlpha << 24);
+   for (int y = 0; y < shadow->Height(); y++) {
+     ARGB *row = ((ARGB *)targetShadow.Row(y));
+     for (int x = 0; x < shadow->Width(); x++) {
+       if (row[x].a != 0) {
+         row[x].ival = colShadow;
+       }
+     }
+   }
+
+   ImagePoint shadowOffset(0, 0);
+   a_pos = inSrc0;
+   for (int q = 0; q < mQuality; q++) {
+     Rect src_rect(shadow->Width(), shadow->Height());
+     BlurFilter::GetFilteredObjectRect(src_rect, q);
+     Surface *blur = new SimpleSurface(src_rect.w, src_rect.h, pfBGRA);
+     blur->IncRef();
+     ImagePoint diff(src_rect.x, src_rect.y);
+
+     DoApply<ARGB>(shadow, blur, a_pos, diff, q);
+     a_pos = ImagePoint(0,0);
+     shadow->DecRef();
+     shadow = blur;
+     shadowOffset += diff;
+   }
+
+   ApplyStrength(shadow, mStrength);
+
+   inSrc->BlitTo(target, src, -inDiff.x, -inDiff.y, bmCopy, 0, 0);
+   if (mKnockout) {
+     inSrc->BlitTo(target, src, -inDiff.x, -inDiff.y, bmErase, 0, 0);
+   }
+
+   highlight->BlitTo(target, Rect(highlight->Width(), highlight->Height()),
+                     highlightOffset.x - inDiff.x, highlightOffset.y - inDiff.y, bmOverlay, 0, 0);
+   shadow->BlitTo(target, Rect(shadow->Width(), shadow->Height()),
+                  shadowOffset.x -inDiff.x, shadowOffset.y -inDiff.y, bmOverlay, 0, 0);
+
 }
 
 void BevelFilter::ExpandVisibleFilterDomain(Rect &ioRect,int inPass) const
 {
-   Rect orig = ioRect;
+   Rect highlight = ioRect;
+   Rect shadow = ioRect;
 
-   // Handle the quality ourselves, so iterate here.
-   // Work out blur component...
-   for(int q=0;q<mQuality;q++)
-      BlurFilter::ExpandVisibleFilterDomain(ioRect,q);
+   highlight.Translate(-mTX, -mTY);
+   shadow.Translate(mTX, mTY);
+
+   ioRect = ioRect.Union(highlight);
+   ioRect = ioRect.Union(shadow);
+
+   for (int q = 0; q < mQuality; q++)
+     BlurFilter::GetFilteredObjectRect(ioRect, q);
 }
 
 void BevelFilter::GetFilteredObjectRect(Rect &ioRect,int inPass) const
 {
-   Rect orig = ioRect;
+   Rect highlight = ioRect;
+   Rect shadow = ioRect;
 
-   // Handle the quality ourselves, so iterate here.
-   // Work out blur component...
-   for(int q=0;q<mQuality;q++)
-      BlurFilter::GetFilteredObjectRect(ioRect,q);
+   highlight.Translate(-mTX, -mTY);
+   shadow.Translate(mTX, mTY);
+
+   ioRect = ioRect.Union(highlight);
+   ioRect = ioRect.Union(shadow);
+
+   for (int q = 0; q < mQuality; q++)
+     BlurFilter::GetFilteredObjectRect(ioRect, q);
 }
 
 

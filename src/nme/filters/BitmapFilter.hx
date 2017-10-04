@@ -4,10 +4,10 @@ package nme.filters;
 @:nativeProperty
 class BitmapFilter 
 {
-   /** @private */ private var type:String;
+   /** @private */ private var filterType:String;
    public function new(inType) 
    {
-      type = inType;
+      filterType = inType;
    }
 
    public function clone():BitmapFilter 

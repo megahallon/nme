@@ -97,6 +97,8 @@ public:
    virtual void ExpandVisibleFilterDomain(Rect &ioRect,int inPass) const;
    void GetFilteredObjectRect(Rect &ioRect,int inPass) const;
 
+   int mTX;
+   int mTY;
    int mDistance;
    int mBevelType;
    int mHighlightColor;
